@@ -2,12 +2,11 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель администратора</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            background-color: #f9f9f9; 
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
             margin: 0;
             padding: 20px;
             text-align: center;
@@ -91,96 +90,139 @@
     </style>
 </head>
 <body>
+    <script>
+        // WebSocket для чата
+        const socket = new WebSocket('ws://localhost:8080');
 
-<div class="container">
-    <h2>Добавить новый товар</h2>
-    <form id="productForm">
-        <input type="text" id="name" placeholder="Название" required><br>
-        <input type="number" id="price" placeholder="Цена" required><br>
-        <textarea id="description" placeholder="Описание"></textarea><br>
-        <input type="text" id="categories" placeholder="Категории (через запятую)"><br>
-        <button type="submit" class="add-btn">+ Добавить</button>
-    </form>
+        socket.onopen = () => {
+            console.log('Админ подключен к WebSocket серверу');
+        };
 
-    <h2>Список товаров</h2>
-    <div id="productList"></div>
-</div>
+        socket.onmessage = (event) => {
+            console.log('Новое сообщение от клиента:', event.data);
+            displayMessage(event.data);
+        };
 
-<script>
-const API_URL = "http://localhost:3000/products";
+        socket.onclose = () => {
+            console.log('WebSocket соединение закрыто');
+        };
 
-// Функция загрузки товаров
-function loadProducts() {
-    fetch(API_URL)
-        .then(response => response.json())
-        .then(products => {
-            const productList = document.getElementById("productList");
-            productList.innerHTML = ""; 
-            products.forEach(product => {
-                const productElement = document.createElement("div");
-                productElement.classList.add("product-item");
-                productElement.innerHTML = `
-                    <strong>${product.name}</strong> - ${product.price} руб.
-                    <p>${product.description || "Без описания"}</p>
-                    <p>Категории: ${product.categories?.join(", ") || "Нет"}</p>
-                    <button class="edit-btn" onclick="editProduct(${product.id})">✏️ Редактировать</button>
-                    <button class="delete-btn" onclick="deleteProduct(${product.id})">🗑 Удалить</button>
-                `;
-                productList.appendChild(productElement);
-            });
-        })
-        .catch(error => console.error("Ошибка при загрузке товаров:", error));
-}
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
 
-// Добавление товара
-document.getElementById("productForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    const name = document.getElementById("name").value;
-    const price = document.getElementById("price").value;
-    const description = document.getElementById("description").value;
-    const categories = document.getElementById("categories").value.split(",").map(cat => cat.trim());
+            if (message) {
+                socket.send(`Админ: ${message}`);
+                input.value = '';
+            }
+        }
 
-    fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, price, description, categories })
-    })
-    .then(() => {
-        alert("Товар добавлен!");
-        this.reset();
+        function displayMessage(message) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageElement = document.createElement('p');
+            messageElement.textContent = message;
+            chatContainer.appendChild(messageElement);
+        }
+    </script>
+
+    <div class="container">
+        <h2>Добавить новый товар</h2>
+        <form id="productForm">
+            <input type="text" id="name" placeholder="Название" required><br>
+            <input type="number" id="price" placeholder="Цена" required><br>
+            <textarea id="description" placeholder="Описание"></textarea><br>
+            <input type="text" id="categories" placeholder="Категории (через запятую)"><br>
+            <button type="submit" class="add-btn">+ Добавить</button>
+        </form>
+
+        <h2>Список товаров</h2>
+        <div id="productList"></div>
+    </div>
+
+    <section id="chat">
+        <h2>Чат поддержки</h2>
+        <div id="chatContainer"></div>
+        <input type="text" id="chatInput" placeholder="Введите сообщение...">
+        <button onclick="sendMessage()">Отправить</button>
+    </section>
+
+    <script>
+        // REST API URL
+        const API_URL = "http://localhost:3000/products";
+
+        // Функция загрузки товаров (GET /products)
+        function loadProducts() {
+            fetch(API_URL)
+                .then(response => response.json())
+                .then(products => {
+                    const productList = document.getElementById("productList");
+                    productList.innerHTML = "";
+                    products.forEach(product => {
+                        const productElement = document.createElement("div");
+                        productElement.classList.add("product-item");
+                        productElement.innerHTML = `
+                            <strong>${product.name}</strong> - ${product.price} руб.
+                            <p>${product.description || "Без описания"}</p>
+                            <p>Категории: ${product.categories?.join(", ") || "Нет"}</p>
+                            <button class="edit-btn" onclick="editProduct(${product.id})">✏️ Редактировать</button>
+                            <button class="delete-btn" onclick="deleteProduct(${product.id})">🗑 Удалить</button>
+                        `;
+                        productList.appendChild(productElement);
+                    });
+                })
+                .catch(error => console.error("Ошибка при загрузке товаров:", error));
+        }
+
+        // Добавление товара (POST /products)
+        document.getElementById("productForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            const name = document.getElementById("name").value;
+            const price = document.getElementById("price").value;
+            const description = document.getElementById("description").value;
+            const categories = document.getElementById("categories").value
+                .split(",")
+                .map(cat => cat.trim());
+
+            fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, price, description, categories })
+            })
+            .then(() => {
+                alert("Товар добавлен!");
+                this.reset();
+                loadProducts();
+            })
+            .catch(error => console.error("Ошибка при добавлении товара:", error));
+        });
+
+        // Удаление товара (DELETE /products/:id)
+        function deleteProduct(id) {
+            if (confirm("Удалить этот товар?")) {
+                fetch(`${API_URL}/${id}`, { method: "DELETE" })
+                .then(() => loadProducts())
+                .catch(error => console.error("Ошибка при удалении товара:", error));
+            }
+        }
+
+        // Редактирование товара (PUT /products/:id)
+        function editProduct(id) {
+            const newName = prompt("Введите новое название:");
+            const newPrice = prompt("Введите новую цену:");
+
+            if (newName && newPrice) {
+                fetch(`${API_URL}/${id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name: newName, price: Number(newPrice) })
+                })
+                .then(() => loadProducts())
+                .catch(error => console.error("Ошибка при редактировании товара:", error));
+            }
+        }
+
+        // Загружаем список товаров при загрузке страницы
         loadProducts();
-    })
-    .catch(error => console.error("Ошибка при добавлении товара:", error));
-});
-
-// Удаление товара
-function deleteProduct(id) {
-    if (confirm("Удалить этот товар?")) {
-        fetch(`${API_URL}/${id}`, { method: "DELETE" })
-        .then(() => loadProducts())
-        .catch(error => console.error("Ошибка при удалении товара:", error));
-    }
-}
-
-// Редактирование товара
-function editProduct(id) {
-    const newName = prompt("Введите новое название:");
-    const newPrice = prompt("Введите новую цену:");
-    
-    if (newName && newPrice) {
-        fetch(`${API_URL}/${id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: newName, price: newPrice })
-        })
-        .then(() => loadProducts())
-        .catch(error => console.error("Ошибка при редактировании товара:", error));
-    }
-}
-
-// Загрузка товаров при загрузке страницы
-loadProducts();
-</script>
-
+    </script>
 </body>
 </html>
